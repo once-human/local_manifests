@@ -29,6 +29,24 @@ m pixelos
 
 Release builds are signed with private keys in `vendor/lineage-priv/keys` (never published), which PixelOS includes automatically.
 
+## Install
+
+See **[docs/INSTALL.md](docs/INSTALL.md)**. In short: unlocked bootloader, stock HyperOS 2 firmware (OS2.0.210 tested), latest platform-tools, then in fastboot mode:
+
+```bash
+fastboot -w update PixelOS_sky-<version>-fastboot.zip
+```
+
+The fastboot ROM never flashes firmware, the bootloader or recovery.
+
+## Repository contents
+
+| Path | What |
+|---|---|
+| `sky.xml` | Local manifest (the sources) |
+| `docs/INSTALL.md` | Installation guide for the first release |
+| `scripts/build_pixelos17_sky.sh` | The all-in-one script the first release was built with: syncs PixelOS, applies the same changes as the `seventeen` branches above on top of TopexGuy's tree, builds a signed user build, verifies it and packages the release. New builds should use the manifest instead. |
+
 ## Credits
 
 TopexGuy (device, vendor, kernel) · anonytry (hardware/xiaomi, Dolby, vibrator) · PixelOS and LineageOS teams.
