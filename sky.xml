@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- PixelOS 17 (Android 17) for Xiaomi sky: Redmi 12 5G / POCO M6 Pro 5G / Redmi Note 12R -->
+<manifest>
+  <remote name="sky-gh" fetch="https://github.com" />
+
+  <!-- replaced by the sky-specific versions below -->
+  <remove-project name="LineageOS/android_vendor_qcom_opensource_vibrator" />
+  <!-- clashes with hardware/dolby (both define preinstalled-packages-platform-dolby.xml) -->
+  <remove-project name="PixelOS-AOSP/android_packages_apps_DolbyAtmos" />
+
+  <!-- device -->
+  <project path="device/xiaomi/sky" name="once-human/device_xiaomi_sky" remote="sky-gh" revision="seventeen" />
+  <project path="vendor/xiaomi/sky" name="topexguy/vendor_xiaomi_sky" remote="sky-gh" revision="4b3954feaf635bfa2f109e1f56ec5163f5398d21" upstream="17" clone-depth="1" />
+  <project path="kernel/xiaomi/sky" name="topexguy/kernel_xiaomi_sky" remote="sky-gh" revision="d3f593876a490edfe8cd54fa54648ef8c0b17b62" upstream="17" clone-depth="1" />
+  <project path="kernel/xiaomi/sm8450-modules" name="topexguy/kernel_xiaomi_sm8450-modules" remote="sky-gh" revision="c200bb122989e8a33dd9e5b397a1585ad57a1fdf" upstream="17" clone-depth="1" />
+
+  <!-- hardware -->
+  <project path="hardware/xiaomi" name="once-human/android_hardware_xiaomi" remote="sky-gh" revision="seventeen" />
+  <project path="hardware/dolby" name="anonytry/hardware_dolby" remote="sky-gh" revision="d371b35e8533af47b42043f4ec91e2605296e41d" upstream="17" />
+  <project path="vendor/qcom/opensource/vibrator" name="anonytry/android_vendor_qcom_opensource_vibrator" remote="sky-gh" revision="cd13980dafdf0c87c62a7956c97d5e59cef8832c" upstream="lineage-23.2" />
+</manifest>
