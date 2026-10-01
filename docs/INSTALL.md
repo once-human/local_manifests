@@ -20,6 +20,7 @@ happens, so a phone can always be restored with Xiaomi's official ROM.
 | File | Use |
 |---|---|
 | `PixelOS_sky-17.0-20260930-1940-fastboot.zip` | **Fastboot ROM.** Don't extract it: fastboot reads it directly |
+| `PixelOS_sky-17.0-20260930-1940.zip` | **Recovery ROM** (for sideloading from a custom recovery) |
 | `SHA256SUMS` | Checksums, to verify your download (`sha256sum -c SHA256SUMS`) |
 
 ## Install (fastboot)
@@ -44,7 +45,12 @@ fastboot checks the zip is for sky, flashes everything from the bootloader in on
 
 ## Recovery ROM
 
-Not in this release: installing through a custom recovery (OrangeFox sideload) failed in testing. Use the fastboot install above.
+Same requirements as above (unlocked bootloader, HyperOS 2 firmware).
+
+1. Boot into your custom recovery.
+2. Clean flash: **Format data** (skip this when updating over this ROM).
+3. Sideload: `adb sideload PixelOS_sky-17.0-20260930-1940.zip`
+4. Reboot to system. First boot takes **5-10 minutes**.
 
 ## Firmware
 
