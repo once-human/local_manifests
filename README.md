@@ -31,7 +31,7 @@ Release builds are signed with private keys in `vendor/lineage-priv/keys` (never
 
 ## Install
 
-See **[docs/INSTALL.md](docs/INSTALL.md)**. In short: unlocked bootloader, stock HyperOS 2 firmware (OS2.0.210 tested), latest platform-tools, then in fastboot mode:
+See **[docs/INSTALL.md](docs/INSTALL.md)**. In short: unlocked bootloader, stock HyperOS 2 firmware (OS2.0.210 tested), platform-tools 35 or newer, then in fastboot mode:
 
 ```bash
 fastboot -w update PixelOS_sky-<version>-fastboot.zip

@@ -46,7 +46,7 @@
 #    AUTO_SWAP=1 FORCE=1 NO_TMUX=1 JOBS=N   as before
 # =============================================================================
 set -Eeo pipefail
-SCRIPT_VERSION="3.12"
+SCRIPT_VERSION="3.13"
 
 # ------------------------------- config --------------------------------------
 WORKDIR="${WORKDIR:-$HOME/pixelos17}"
@@ -958,6 +958,8 @@ for line in open(st, encoding="utf-8"):
 s = open(tpl, encoding="utf-8").read()
 extra = [x.strip() for x in v.get("EXTRA_ISSUES", "").split("|") if x.strip()]
 s = s.replace("- @EXTRA_ISSUES@\n", "".join("- %s\n" % x for x in extra))
+s = "".join(l for l in s.splitlines(True)
+            if not (re.fullmatch(r"@([A-Z_]+)@\n?", l) and v.get(l.strip().strip("@"), None) == ""))
 s = re.sub(r"@([A-Z_]+)@", lambda m: v.get(m.group(1), m.group(0)), s)
 left = sorted(set(re.findall(r"@[A-Z_]+@", s)))
 if left:
@@ -1007,12 +1009,12 @@ package_release() {
       REL_RECOVERY_NOTE=""
   else
     export REL_RECOVERY_STATUS="Not supported yet (see below): use the fastboot ROM" \
-      REL_RECOVERY_STEPS="Not supported in this build yet: sideloading in OrangeFox failed in testing (its installer could not map the system partitions). Use the fastboot install. The recovery zip is provided for testers." \
+      REL_RECOVERY_STEPS="Not in this release: installing through a custom recovery (OrangeFox sideload) failed in testing. Use the fastboot install above." \
       REL_RECOVERY_NOTE="- Installing through a custom recovery isn't supported yet: use the fastboot ROM
 "
   fi
-  psig="img-zip-v4"   # bump when the fastboot zip layout changes
-  if [[ -f "$fz" && "$fz" -nt "$zip" && -z "${REPACK:-}" && "$(cat "$rdir/.pkg.sig" 2>/dev/null)" == "$psig" ]]; then
+  psig="img-zip-v5"   # bump when the fastboot zip layout changes
+  if [[ -f "$fz" && "$fz" -nt "$zip" && -z "${REPACK:-}" && "$(cat "$STATE_DIR/pkg-$name.sig" 2>/dev/null)" == "$psig" ]]; then
     ok "fastboot package already up to date (REPACK=1 to rebuild it)"
   else
     local need_gb=12 free; free=$(gb_free "$RELEASE_DIR")
@@ -1057,6 +1059,7 @@ package_release() {
     # bootloader in one go, on the phone's current slot, instead of rebooting into fastbootd
     # (which lives in recovery and varies per phone)
     { echo "version 1"
+      echo "erase misc"   # clears a stale 'boot into recovery' request left by any earlier failed flash
       for p in "${REL_IMGS[@]}"; do
         case "$p" in vbmeta*) echo "flash --apply-vbmeta $p" ;; *) echo "flash $p" ;; esac
       done
@@ -1069,13 +1072,19 @@ package_release() {
     ( cd "$stg" && zip -q -6 "$fz.tmp" android-info.txt fastboot-info.txt ./*.img ) || die "zip failed"
     unzip -tq "$fz.tmp" >/dev/null || die "fastboot zip failed its integrity test"
     [[ "$(unzip -Z1 "$fz.tmp" | grep -c '\.img$')" == "$(( ${#REL_IMGS[@]} + $(wc -w <<<"$dyn") + 1 ))" ]] || die "fastboot zip has the wrong number of images"
-    mv -f "$fz.tmp" "$fz"; rm -rf "$stg"; echo "$psig" > "$rdir/.pkg.sig"
+    mv -f "$fz.tmp" "$fz"; rm -rf "$stg"; echo "$psig" > "$STATE_DIR/pkg-$name.sig"
     ok "fastboot package: $(basename "$fz") ($(( $(stat -c %s "$fz") / 1048576 ))MB)"
   fi
-  link_or_copy "$zip" "$rdir/$name.zip" || die "copy OTA zip failed"
+  local sums=("$name-fastboot.zip")
+  if [[ "$rec" == yes ]]; then
+    link_or_copy "$zip" "$rdir/$name.zip" || die "copy OTA zip failed"; sums+=("$name.zip")
+    export REL_OTA_ROW="| \`$name.zip\` | Recovery ROM (OTA zip): $REL_RECOVERY_STATUS |"
+  else
+    rm -f "$rdir/$name.zip" "$rdir/.pkg.sig"; export REL_OTA_ROW=""   # not published until a recovery install is tested
+  fi
 
   # --- checksums + docs (regenerated every time, so RELEASE_ONLY=1 refreshes the status table) ---
-  ( cd "$rdir" && sha256sum "$name-fastboot.zip" "$name.zip" > SHA256SUMS ) || die "checksum failed"
+  ( cd "$rdir" && sha256sum "${sums[@]}" > SHA256SUMS ) || die "checksum failed"
   local bp="$out/system/build.prop" kver kr
   kr=$(ls "$out"/obj/KERNEL_OBJ/include/config/kernel.release 2>/dev/null | head -1)
   if [[ -n "$kr" ]]; then kver=$(<"$kr"); else kver=$(strings -n 16 "$out/kernel" 2>/dev/null | grep -m1 -oP 'Linux version \K\S+' || true); fi
@@ -1098,7 +1107,7 @@ package_release() {
 ${C_G}================= RELEASE READY =================${C_0}
 Folder: $rdir
   $name-fastboot.zip   <- what users (and you) install
-  $name.zip            <- OTA zip (recovery install not supported yet)
+$( [[ "$rec" == yes ]] && echo "  $name.zip            <- recovery ROM (OTA zip)" )
   INSTALL.md  RELEASE_NOTES.md  SHA256SUMS
 
 On your PC (in bash), download it:
@@ -1127,7 +1136,7 @@ happens, so a phone can always be restored with Xiaomi's official ROM.
 | **Device** | Any sky: Redmi 12 5G, POCO M6 Pro 5G, Redmi Note 12R, any region |
 | **Bootloader** | Unlocked (Mi Unlock) |
 | **Firmware** | Stock **HyperOS 2** (Android 15) firmware. Tested on **OS2.0.210** (Global); other HyperOS 2 versions are expected to work. See [Firmware](#firmware) |
-| **PC** | Google's **latest platform-tools** (`fastboot`). Old versions can't flash this ROM in one step |
+| **PC** | Google's **platform-tools 35 or newer** (`fastboot --version` shows it). Older fastboot can't flash this ROM in one step |
 | **Data** | A clean install wipes the phone: back up first |
 
 ## Downloads
@@ -1135,8 +1144,8 @@ happens, so a phone can always be restored with Xiaomi's official ROM.
 | File | Use |
 |---|---|
 | `@NAME@-fastboot.zip` | **Fastboot ROM.** Don't extract it: fastboot reads it directly |
-| `@NAME@.zip` | Recovery ROM (OTA zip). @RECOVERY_STATUS@ |
-| `SHA256SUMS` | Checksums of both files |
+@OTA_ROW@
+| `SHA256SUMS` | Checksums, to verify your download (`sha256sum -c SHA256SUMS`) |
 
 ## Install (fastboot)
 
@@ -1144,7 +1153,7 @@ happens, so a phone can always be restored with Xiaomi's official ROM.
    - **Windows:** "SDK Platform-Tools for Windows" from developer.android.com; open a terminal in that folder. Install the Xiaomi/Google USB driver if the phone isn't found.
    - **Linux:** Arch `sudo pacman -S android-tools` · Debian/Ubuntu `sudo apt install fastboot` (or Google's zip if your distro's is old)
    - **macOS:** `brew install android-platform-tools`
-2. Phone off → hold **Power + Volume Down** → **FASTBOOT** → connect USB. Check: `fastboot devices` shows the phone.
+2. Phone off → hold **Power + Volume Down** → **FASTBOOT** → connect USB. Check: `fastboot devices` shows the phone (Linux: use `sudo fastboot`).
 3. Flash:
 
 | | Command |
@@ -1152,7 +1161,9 @@ happens, so a phone can always be restored with Xiaomi's official ROM.
 | **Clean install** (from stock or another ROM; wipes data) | `fastboot -w update @NAME@-fastboot.zip` |
 | **Update** (over an earlier build of this ROM; keeps data) | `fastboot update @NAME@-fastboot.zip` |
 
-fastboot checks the zip is for sky before flashing, writes the ROM to the current slot, and reboots. First boot takes **5-10 minutes**.
+fastboot checks the zip is for sky, flashes everything from the bootloader in one go (you'll see `Sending sparse 'super'`), and reboots by itself. First boot takes **5-10 minutes**.
+
+`-w` wipes your data (needed when coming from another ROM). Nothing else is touched: you can flash stock or any other ROM later exactly as before.
 
 (On Windows, if `fastboot` isn't found, use `.\fastboot` from inside the platform-tools folder, with the full path to the zip.)
 
@@ -1175,7 +1186,8 @@ If the ROM doesn't boot within 15 minutes, or the phone came from HyperOS 1 or a
 |---|---|
 | `fastboot devices` shows nothing | Another USB port/cable (not a hub). Windows: USB driver. Linux: `sudo fastboot ...` |
 | "requirement board=sky not met" / wrong product | This ROM is only for sky |
-| It says "Rebooting into fastboot" and then hangs | Your platform-tools are too old: update them and run the command again from bootloader mode (Power + Volume Down) |
+| It says "Rebooting into fastboot" and then hangs | Your fastboot is too old. Update platform-tools, get back to bootloader mode (Power + Volume Down), run `fastboot erase misc`, then run the install command again |
+| The phone keeps booting into recovery after flashing | A leftover boot request from an earlier attempt. In bootloader mode: `fastboot erase misc` then `fastboot reboot` |
 | A step failed mid-way | Don't reboot. Fix the connection and run the same command again: it's safe to repeat |
 | Stuck on the boot logo > 15 minutes | See [Firmware](#firmware) |
 | Reporting a bug | Developer options → USB debugging, then `adb bugreport bug.zip`; share it with your HyperOS firmware version |
@@ -1233,7 +1245,7 @@ rel_release_notes_md() { cat <<'__SKY17_REL_RELEASE_NOTES_MD__'
 
 ## Install
 
-See **INSTALL.md**. Short version: unlocked bootloader + stock HyperOS 2 firmware (OS2.0.210 tested) + latest platform-tools → fastboot mode (Power + Volume Down) → `fastboot -w update @NAME@-fastboot.zip`. Updates: `fastboot update @NAME@-fastboot.zip`.
+See **INSTALL.md**. Short version: unlocked bootloader + stock HyperOS 2 firmware (OS2.0.210 tested) + platform-tools 35 or newer → fastboot mode (Power + Volume Down) → `fastboot -w update @NAME@-fastboot.zip`. Updates: `fastboot update @NAME@-fastboot.zip`.
 
 ## Checksums
 
@@ -1246,7 +1258,6 @@ See **INSTALL.md**. Short version: unlocked bootloader + stock HyperOS 2 firmwar
 TopexGuy (sky Android 17 device, vendor, kernel) · anonytry (hardware/xiaomi, Dolby, vibrator) · PixelOS and LineageOS teams · everyone behind earlier sky bring-ups.
 __SKY17_REL_RELEASE_NOTES_MD__
 }
-
 rel_fix_super_empty() { cat <<'__SKY17_FIX_SUPER_EMPTY__'
 #!/usr/bin/env python3
 """Rebuild super_empty.img with every partition marked readonly (needed for fastboot's
