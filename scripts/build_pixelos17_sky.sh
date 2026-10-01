@@ -46,7 +46,7 @@
 #    AUTO_SWAP=1 FORCE=1 NO_TMUX=1 JOBS=N   as before
 # =============================================================================
 set -Eeo pipefail
-SCRIPT_VERSION="3.11"
+SCRIPT_VERSION="3.12"
 
 # ------------------------------- config --------------------------------------
 WORKDIR="${WORKDIR:-$HOME/pixelos17}"
@@ -1011,7 +1011,7 @@ package_release() {
       REL_RECOVERY_NOTE="- Installing through a custom recovery isn't supported yet: use the fastboot ROM
 "
   fi
-  psig="img-zip-v3"   # bump when the fastboot zip layout changes
+  psig="img-zip-v4"   # bump when the fastboot zip layout changes
   if [[ -f "$fz" && "$fz" -nt "$zip" && -z "${REPACK:-}" && "$(cat "$rdir/.pkg.sig" 2>/dev/null)" == "$psig" ]]; then
     ok "fastboot package already up to date (REPACK=1 to rebuild it)"
   else
@@ -1044,7 +1044,14 @@ package_release() {
         link_or_copy "$src/$p.img" "$stg/$p.img" || die "copy $p.img failed"
       fi
     done
-    link_or_copy "$out/super_empty.img" "$stg/super_empty.img" || die "copy super_empty.img failed"
+    # fastboot only flashes super from the bootloader in one go if every partition in
+    # super_empty.img is marked readonly; this tree's build leaves them writable -> rebuild it
+    local hb="$WORKDIR/out/host/linux-x86/bin"
+    [[ -x "$hb/lpdump" && -x "$hb/lpmake" ]] || { [[ -n "${TARGET_PRODUCT:-}" ]] || load_build_env; run_m lptools lpdump lpmake || die "can't build lpdump/lpmake"; }
+    rel_fix_super_empty > "$stg/fix_super_empty.py"
+    python3 "$stg/fix_super_empty.py" "$hb" "$out/super_empty.img" "$stg/super_empty.img" || die "could not make a readonly super_empty.img"
+    rm -f "$stg/fix_super_empty.py"
+    ok "super_empty.img: all partitions readonly (one-step fastboot flashing)"
     printf 'require board=%s\n' "$CODENAME" > "$stg/android-info.txt"
     # fastboot-info.txt: tells fastboot (platform-tools 34+) to build and flash super from the
     # bootloader in one go, on the phone's current slot, instead of rebooting into fastbootd
@@ -1238,6 +1245,63 @@ See **INSTALL.md**. Short version: unlocked bootloader + stock HyperOS 2 firmwar
 
 TopexGuy (sky Android 17 device, vendor, kernel) · anonytry (hardware/xiaomi, Dolby, vibrator) · PixelOS and LineageOS teams · everyone behind earlier sky bring-ups.
 __SKY17_REL_RELEASE_NOTES_MD__
+}
+
+rel_fix_super_empty() { cat <<'__SKY17_FIX_SUPER_EMPTY__'
+#!/usr/bin/env python3
+"""Rebuild super_empty.img with every partition marked readonly (needed for fastboot's
+one-step super flashing). Everything else (sizes, groups, slots, flags) is copied."""
+import re, subprocess, sys
+
+HOST = sys.argv[1]          # out/host/linux-x86/bin
+SRC, DST = sys.argv[2], sys.argv[3]
+
+def dump(path):
+    return subprocess.run([f"{HOST}/lpdump", path], capture_output=True, text=True, check=True).stdout
+
+def parse(txt):
+    g = lambda pat: (re.search(pat, txt, re.M) or sys.exit(f"lpdump: '{pat}' not found")).group(1)
+    info = {
+        "version": g(r"^Metadata version: (\S+)"),
+        "msize": g(r"^Metadata max size: (\d+) bytes"),
+        "slots": g(r"^Metadata slot count: (\d+)"),
+        "hflags": (re.search(r"^Header flags: (.*)$", txt, re.M) or [None, "none"])[1].strip(),
+    }
+    part_tbl = txt.split("Partition table:", 1)[1].split("Super partition layout:", 1)[0]
+    blk_tbl = txt.split("Block device table:", 1)[1].split("Group table:", 1)[0]
+    grp_tbl = txt.split("Group table:", 1)[1]
+    info["parts"] = re.findall(r"Name: (\S+)\n\s+Group: (\S+)\n\s+Attributes: ([^\n]*)", part_tbl)
+    info["blocks"] = re.findall(r"Partition name: (\S+)\n\s+First sector: (\d+)\n\s+Size: (\d+) bytes", blk_tbl)
+    info["groups"] = re.findall(r"Name: (\S+)\n\s+Maximum size: (\d+) bytes", grp_tbl)
+    return info
+
+src = parse(dump(SRC))
+if len(src["blocks"]) != 1:
+    sys.exit(f"expected one super block device, got {src['blocks']}")
+bname, _, bsize = src["blocks"][0]
+cmd = [f"{HOST}/lpmake", "--metadata-size", src["msize"], "--metadata-slots", src["slots"],
+       "--device", f"{bname}:{bsize}", "--super-name", bname, "--output", DST]
+if "virtual_ab" in src["hflags"]:
+    cmd.append("--virtual-ab")
+for name, size in src["groups"]:
+    if name != "default":
+        cmd += ["--group", f"{name}:{size}"]
+for name, group, _ in src["parts"]:
+    cmd += ["--partition", f"{name}:readonly:0:{group}"]
+print("partitions:", " ".join(p[0] for p in src["parts"]))
+subprocess.run(cmd, check=True)
+
+new = parse(dump(DST))
+bad = [p for p in new["parts"] if "readonly" not in p[2]]
+same = (src["version"], src["msize"], src["slots"], src["hflags"], src["blocks"][0][2], src["groups"],
+        [(n, g) for n, g, _ in src["parts"]]) == \
+       (new["version"], new["msize"], new["slots"], new["hflags"], new["blocks"][0][2], new["groups"],
+        [(n, g) for n, g, _ in new["parts"]])
+if bad or not same:
+    sys.exit(f"CHECK FAILED: not readonly={bad} layout_identical={same}\nold={src}\nnew={new}")
+print(f"OK: {len(new['parts'])} partitions readonly; layout identical (super {bsize} bytes, "
+      f"metadata {src['msize']}x{src['slots']}, flags: {src['hflags']})")
+__SKY17_FIX_SUPER_EMPTY__
 }
 
 main() {
