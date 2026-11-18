@@ -7,7 +7,7 @@
 #  carries all changes as commits; this script no longer patches anything on the fly.
 #    device   android_device_xiaomi_sky, android_device_xiaomi_sm4450-common
 #             (LineageOS-style, from the xiaomi-ravelin sm4450 6.6 bring-up)
-#    kernel   android_kernel_xiaomi_sm4450 (6.6 "Nimbus": Suvojeet's kernel, WALT kept,
+#    kernel   android_kernel_xiaomi_sm4450 (6.6 "onkar": Suvojeet's kernel, WALT kept,
 #             TopexGuy's watchdog/BBR fixes, moinator856's ramoops), -modules, -devicetrees
 #    hw       android_hardware_xiaomi (LineageOS + fingerprint crash fix), branch seventeen-6.6
 #    vendor   NOT downloaded: extracted here from Xiaomi's official stock ROMs
@@ -1224,6 +1224,7 @@ The OTA zip (Updater, sideload) **brings OS2.0.210 firmware** with it, so phones
 | "requirement board=sky not met" | This ROM is only for sky |
 | It says "Rebooting into fastboot" and then hangs | Your fastboot is too old. Update platform-tools, get back to bootloader mode, run `fastboot erase misc`, then the install command again |
 | The phone keeps booting into recovery after flashing | In bootloader mode: `fastboot erase misc` then `fastboot reboot` |
+| "Disk quota exceeded" / "failed to extract" (Linux) | fastboot unpacks images into /tmp, which is small on some distros. Use a folder on disk: `mkdir -p ~/fb-tmp && TMPDIR=~/fb-tmp fastboot -w update @NAME@-fastboot.zip` |
 | A step failed mid-way | Don't reboot. Fix the connection and run the same command again: it's safe to repeat |
 | Stuck on the boot logo > 15 minutes | See [Firmware](#firmware) |
 | Reporting a bug | Developer options → USB debugging, then `adb bugreport bug.zip`; open an issue at github.com/once-human/pixelos-sky |
@@ -1242,7 +1243,7 @@ rel_release_notes_md() { cat <<'__SKY17_REL_RELEASE_NOTES_MD__'
 ## Highlights
 
 - PixelOS 17 on Android 17 (`@RELEASE@`), security patch **@SPL@**
-- **Linux @KERNEL@** ("Nimbus"): new GKI 6.6 kernel built from source, Qualcomm's WALT scheduler kept for battery life, BBR + FQ networking, lazy RCU
+- **Linux @KERNEL@** (`-onkar`): new GKI 6.6 kernel built from source, Qualcomm's WALT scheduler kept for battery life, BBR + FQ networking, lazy RCU
 - New device trees from the LineageOS-style sm4450 6.6 bring-up; HyperOS 3 (mist OS3.0.306) common blobs, sky OS2.0.210 device blobs and firmware
 - Smoother and lighter: zram lz4 with zstd recompression of idle pages, MGLRU, THP only where asked, mq-deadline I/O, tuned dalvik heap and LMK, Settings/SystemUI compiled ahead of time, faster boot (device links settle on a timeout)
 - **Built-in OTA updates** (Settings → System → Updater)
