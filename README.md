@@ -1,27 +1,44 @@
 # PixelOS 17 for Xiaomi sky
 
-Local manifest for building **PixelOS 17 (Android 17)** for the Redmi 12 5G, POCO M6 Pro 5G and Redmi Note 12R (`sky`).
+Local manifest for building **PixelOS 17 (Android 17)** with the **Linux 6.6** kernel for the Redmi 12 5G, POCO M6 Pro 5G and Redmi Note 12R (`sky`).
 
-| Path | Source |
+| Path | Source (branch) |
 |---|---|
-| `device/xiaomi/sky` | [once-human/device_xiaomi_sky](https://github.com/once-human/device_xiaomi_sky) (`seventeen`), based on TopexGuy's tree |
-| `vendor/xiaomi/sky` | [topexguy/vendor_xiaomi_sky](https://github.com/topexguy/vendor_xiaomi_sky) (OS2.0.210 blobs) |
-| `kernel/xiaomi/sky` | [topexguy/kernel_xiaomi_sky](https://github.com/topexguy/kernel_xiaomi_sky) (5.10, built from source) |
-| `kernel/xiaomi/sm8450-modules` | [topexguy/kernel_xiaomi_sm8450-modules](https://github.com/topexguy/kernel_xiaomi_sm8450-modules) |
-| `hardware/xiaomi` | [once-human/android_hardware_xiaomi](https://github.com/once-human/android_hardware_xiaomi) (`seventeen`) |
-| `hardware/dolby` | [anonytry/hardware_dolby](https://github.com/anonytry/hardware_dolby) |
-| `vendor/qcom/opensource/vibrator` | [anonytry/android_vendor_qcom_opensource_vibrator](https://github.com/anonytry/android_vendor_qcom_opensource_vibrator) |
+| `device/xiaomi/sky` | [once-human/android_device_xiaomi_sky](https://github.com/once-human/android_device_xiaomi_sky) (`seventeen`) |
+| `device/xiaomi/sm4450-common` | [once-human/android_device_xiaomi_sm4450-common](https://github.com/once-human/android_device_xiaomi_sm4450-common) (`seventeen`) |
+| `kernel/xiaomi/sm4450` | [once-human/android_kernel_xiaomi_sm4450](https://github.com/once-human/android_kernel_xiaomi_sm4450) (`seventeen`, 6.6 "Nimbus") |
+| `kernel/xiaomi/sm4450-modules` | [once-human/android_kernel_xiaomi_sm4450-modules](https://github.com/once-human/android_kernel_xiaomi_sm4450-modules) (`seventeen`) |
+| `kernel/xiaomi/sm4450-devicetrees` | [once-human/android_kernel_xiaomi_sm4450-devicetrees](https://github.com/once-human/android_kernel_xiaomi_sm4450-devicetrees) (`seventeen`) |
+| `hardware/xiaomi` | [once-human/android_hardware_xiaomi](https://github.com/once-human/android_hardware_xiaomi) (`seventeen-6.6`) |
+| `vendor/xiaomi/sky`, `vendor/xiaomi/sm4450-common` | **extracted** from Xiaomi's stock ROMs: sky OS2.0.210.0.VMWMIXM, mist OS3.0.306.0.WPUINXM |
 
-Third-party repos are pinned to the exact commits the release was built from.
+The device trees come from the LineageOS-style sm4450 6.6 bring-up by the xiaomi-ravelin team, and the kernel from Suvojeet's 6.6 kernel. Every change on top is a commit on the `seventeen` branches.
+
+The October 2026 setup (5.10, TopexGuy trees) is on the [`seventeen-5.10`](https://github.com/once-human/local_manifests/tree/seventeen-5.10) branch.
 
 ## Build
+
+The script does everything: preflight, sync, blob extraction from the stock ROMs, a fast configuration and kernel check, the signed user build, verification, and the release folder with the Updater feed.
+
+```bash
+mkdir -p ~/stock-roms   # put Xiaomi's official recovery zips here (or pass SKY_ROM= / MIST_ROM= paths or URLs)
+curl -fLO https://raw.githubusercontent.com/once-human/local_manifests/seventeen/scripts/build_pixelos17_sky.sh
+chmod +x build_pixelos17_sky.sh
+CHECK_ONLY=1 ./build_pixelos17_sky.sh   # checks only
+./build_pixelos17_sky.sh                # full run, inside tmux, resumes when rerun
+```
+
+By hand:
 
 ```bash
 repo init -u https://github.com/PixelOS-AOSP/android_manifest.git -b seventeen --git-lfs
 mkdir -p .repo/local_manifests
 curl -fLo .repo/local_manifests/sky.xml https://raw.githubusercontent.com/once-human/local_manifests/seventeen/sky.xml
 repo sync -c -j"$(nproc)" --force-sync --no-clone-bundle --no-tags
-
+cd device/xiaomi/sky
+./extract-files.py --only-common <mist OS3.0.306.0.WPUINXM zip>
+./extract-files.py --only-target <sky OS2.0.210.0.VMWMIXM zip>
+cd -
 source build/envsetup.sh
 lunch custom_sky-cp2a-user
 m pixelos
@@ -31,21 +48,7 @@ Release builds are signed with private keys in `vendor/lineage-priv/keys` (never
 
 ## Install
 
-Downloads and full guides: **[once-human/pixelos-sky](https://github.com/once-human/pixelos-sky)**. In short: unlocked bootloader, stock HyperOS 2 firmware (OS2.0.210 tested), platform-tools 35 or newer, then in fastboot mode:
-
-```bash
-fastboot -w update PixelOS_sky-<version>-fastboot.zip
-```
-
-The fastboot ROM never flashes firmware, the bootloader or recovery.
-
-## Repository contents
-
-| Path | What |
-|---|---|
-| `sky.xml` | Local manifest (the sources) |
-| `docs/INSTALL.md` | Points to the install guides in [pixelos-sky](https://github.com/once-human/pixelos-sky) |
-| `scripts/build_pixelos17_sky.sh` | The all-in-one script the first release was built with: syncs PixelOS, applies the same changes as the `seventeen` branches above on top of TopexGuy's tree, builds a signed user build, verifies it and packages the release. New builds should use the manifest instead. |
+Downloads and guides: **[once-human/pixelos-sky](https://github.com/once-human/pixelos-sky)**.
 
 ## Credits
 
