@@ -1,21 +1,25 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- PixelOS 17 (Android 17) for Xiaomi sky: Redmi 12 5G / POCO M6 Pro 5G / Redmi Note 12R -->
+<!--
+  PixelOS 17 (Android 17) for Xiaomi sky: Redmi 12 5G / POCO M6 Pro 5G / Redmi Note 12R
+  Linux 6.6 (Nimbus kernel). Trees are LineageOS-style (xiaomi-ravelin sm4450 bring-up)
+  carrying our own changes on the "seventeen" branch.
+
+  vendor/xiaomi/sky and vendor/xiaomi/sm4450-common are NOT synced: the build script
+  extracts them from Xiaomi's stock ROMs (sky OS2.0.210.0.VMWMIXM, mist OS3.0.306.0.WPUINXM).
+  The October (5.10, TopexGuy) setup lives on the seventeen-5.10 branch.
+-->
 <manifest>
   <remote name="sky-gh" fetch="https://github.com" />
 
-  <!-- replaced by the sky-specific versions below -->
-  <remove-project name="LineageOS/android_vendor_qcom_opensource_vibrator" />
-  <!-- clashes with hardware/dolby (both define preinstalled-packages-platform-dolby.xml) -->
-  <remove-project name="PixelOS-AOSP/android_packages_apps_DolbyAtmos" />
-
   <!-- device -->
-  <project path="device/xiaomi/sky" name="once-human/device_xiaomi_sky" remote="sky-gh" revision="seventeen" />
-  <project path="vendor/xiaomi/sky" name="topexguy/vendor_xiaomi_sky" remote="sky-gh" revision="4b3954feaf635bfa2f109e1f56ec5163f5398d21" upstream="17" clone-depth="1" />
-  <project path="kernel/xiaomi/sky" name="topexguy/kernel_xiaomi_sky" remote="sky-gh" revision="d3f593876a490edfe8cd54fa54648ef8c0b17b62" upstream="17" clone-depth="1" />
-  <project path="kernel/xiaomi/sm8450-modules" name="topexguy/kernel_xiaomi_sm8450-modules" remote="sky-gh" revision="c200bb122989e8a33dd9e5b397a1585ad57a1fdf" upstream="17" clone-depth="1" />
+  <project path="device/xiaomi/sky" name="once-human/android_device_xiaomi_sky" remote="sky-gh" revision="seventeen" />
+  <project path="device/xiaomi/sm4450-common" name="once-human/android_device_xiaomi_sm4450-common" remote="sky-gh" revision="seventeen" />
 
-  <!-- hardware -->
-  <project path="hardware/xiaomi" name="once-human/android_hardware_xiaomi" remote="sky-gh" revision="seventeen" />
-  <project path="hardware/dolby" name="anonytry/hardware_dolby" remote="sky-gh" revision="d371b35e8533af47b42043f4ec91e2605296e41d" upstream="17" />
-  <project path="vendor/qcom/opensource/vibrator" name="anonytry/android_vendor_qcom_opensource_vibrator" remote="sky-gh" revision="cd13980dafdf0c87c62a7956c97d5e59cef8832c" upstream="lineage-23.2" />
+  <!-- kernel (6.6) -->
+  <project path="kernel/xiaomi/sm4450" name="once-human/android_kernel_xiaomi_sm4450" remote="sky-gh" revision="seventeen" clone-depth="1" />
+  <project path="kernel/xiaomi/sm4450-modules" name="once-human/android_kernel_xiaomi_sm4450-modules" remote="sky-gh" revision="seventeen" clone-depth="1" />
+  <project path="kernel/xiaomi/sm4450-devicetrees" name="once-human/android_kernel_xiaomi_sm4450-devicetrees" remote="sky-gh" revision="seventeen" clone-depth="1" />
+
+  <!-- hardware: LineageOS hardware/xiaomi + our fingerprint crash fix -->
+  <project path="hardware/xiaomi" name="once-human/android_hardware_xiaomi" remote="sky-gh" revision="seventeen-6.6" />
 </manifest>
