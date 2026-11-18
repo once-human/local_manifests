@@ -834,6 +834,11 @@ config_check() {
   log "4b. SELinux policy compile"
   run_m configcheck-sepolicy selinux_policy || { show_failure "$LOG_DIR/configcheck-sepolicy.log"; die "SELinux policy fails to compile. Send me the error summary above."; }
   ok "SELinux policy compiles"
+  log "4b2. device overlays (navigation bar, display cutout, VoLTE, Wi-Fi, carrier configs)"
+  local rros; rros=$(sed -n 's/^ *name: *"\(.*\)",/\1/p' "$WORKDIR"/device/xiaomi/sky/overlay/*/Android.bp | tr '\n' ' ')
+  [[ -n "$rros" ]] || die "no overlays found in device/xiaomi/sky/overlay"
+  run_m configcheck-overlays $rros || { show_failure "$LOG_DIR/configcheck-overlays.log"; die "An overlay fails to build. Send me the error summary above."; }
+  ok "overlays build: $rros"
   log "4c. VINTF compatibility (device vs Android 17 framework)"
   if run_m configcheck-vintf check-vintf-all; then ok "VINTF compatible"
   elif grep -qiE "unknown target|no rule to make target" "$LOG_DIR/configcheck-vintf.log"; then
