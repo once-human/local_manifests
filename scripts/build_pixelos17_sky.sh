@@ -811,7 +811,7 @@ show_failure() { # summarize a failed m log
   echo "failed build steps: ${nf:-0}"
   grep '^FAILED:' "$lf" 2>/dev/null | cut -c1-220 | sort -u | head -40 || true
   echo "--- first failure in detail ---"
-  { grep -n -A12 -m1 '^FAILED:' "$lf"; grep -n -E 'error:|Error:|ERROR:|neverallow|checkpolicy|VINTF|incompatible' "$lf" | grep -v 'warning:' | sort -t: -k2 -u; } 2>/dev/null | head -80 || true
+  { grep -n -A12 -m1 '^FAILED:' "$lf"; grep -n -E 'error:|Error:|ERROR:|syntax error|\*\*\* |undefined reference|neverallow|checkpolicy|VINTF|incompatible' "$lf" | grep -v -E 'warning:|license metadata|thiserror|liberror' | sort -t: -k2 -u; } 2>/dev/null | head -80 || true
   echo "-----------------------------------"
   local ad="$WORKDIR/out/target/product/$CODENAME/obj/PACKAGING/apkcerts_intermediates"
   if grep -q 'apkcerts-soong-doublecheck' "$lf" 2>/dev/null && [[ -d "$ad" ]]; then
