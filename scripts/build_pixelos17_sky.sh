@@ -674,7 +674,8 @@ setup_signing() { # your release keys in vendor/lineage-priv/keys: restored from
     fi
     if [[ -n "$tgz" ]]; then
       [[ -f "$tgz" ]] || die "KEYS_TGZ: no such file: $tgz"
-      tar tzf "$tgz" | grep -q "^$KEYS_REL/releasekey.pk8$" || die "$tgz doesn't contain $KEYS_REL/releasekey.pk8"
+      local listing; listing=$(tar tzf "$tgz") || die "$tgz is not a readable .tgz"
+      grep -qx "$KEYS_REL/releasekey.pk8" <<<"$listing" || die "$tgz doesn't contain $KEYS_REL/releasekey.pk8"
       tar xzf "$tgz" -C "$WORKDIR" "$KEYS_REL" || die "could not unpack $tgz"
       ok "restored your release keys from $tgz (same keys as the October build: users can update without wiping)"
     else
